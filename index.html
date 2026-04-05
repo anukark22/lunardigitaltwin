@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title> LUNAR Mission Digital Twin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void: #010408;
+  --deep: #020b14;
+  --panel: #040f1d;
+  --panel2: #061525;
+  --rim: rgba(0,200,255,0.08);
+  --rim2: rgba(0,200,255,0.18);
+  --rim3: rgba(0,200,255,0.35);
+  --cyan: #00c8ff;
+  --cyan2: #00e5ff;
+  --cyan-dim: rgba(0,200,255,0.5);
+  --amber: #ffb300;
+  --amber-dim: rgba(255,179,0,0.5);
+  --red: #ff3d3d;
+  --red-dim: rgba(255,61,61,0.5);
+  --green: #00ff9d;
+  --green-dim: rgba(0,255,157,0.5);
+  --violet: #b060ff;
+  --text: #c8dff0;
+  --text2: #5a7a99;
+  --text3: #2a4055;
+  --orb: 'Orbitron', monospace;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Exo 2', sans-serif;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--void);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ─── STARFIELD ─────────────────────────────────────── */
+#starfield {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  animation: twinkle var(--d, 3s) ease-in-out infinite var(--delay, 0s);
+}
+@keyframes twinkle {
+  0%,100% { opacity: var(--max-op, 0.6); transform: scale(1); }
+  50% { opacity: 0.1; transform: scale(0.6); }
+}
+
+/* Scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9998;
+}
+
+/* ─── LAYOUT ─────────────────────────────────────────── */
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 20px 60px;
+}
+
+/* ─── HEADER ─────────────────────────────────────────── */
+.header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 22px 0 20px;
+  border-bottom: 1px solid var(--rim2);
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.header::before {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 50%;
+  transform: translateX(-50%);
+  width: 200px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px 4px 8px;
+  border: 1px solid rgba(0,255,157,0.3);
+  border-radius: 4px;
+  background: rgba(0,255,157,0.04);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--green);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.live-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: livepulse 1.4s ease-in-out infinite;
+}
+
+@keyframes livepulse {
+  0%,100% { opacity: 1; box-shadow: 0 0 8px var(--green); }
+  50% { opacity: 0.4; box-shadow: 0 0 2px var(--green); }
+}
+
+.header-center {
+  text-align: center;
+}
+
+.header-title {
+  font-family: var(--orb);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--cyan2);
+  text-shadow: 0 0 20px rgba(0,229,255,0.4);
+  text-transform: uppercase;
+}
+
+.header-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  letter-spacing: 0.2em;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+.header-right {
+  text-align: right;
+}
+
+.utc-clock {
+  font-family: var(--orb);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 16px rgba(0,200,255,0.5);
+}
+
+.utc-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+/* ─── STAGE SLIDER ───────────────────────────────────── */
+.stage-bar {
+  background: linear-gradient(135deg, var(--panel), var(--panel2));
+  border: 1px solid var(--rim2);
+  border-radius: 8px;
+  padding: 18px 24px 16px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stage-bar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 10%, var(--cyan-dim) 50%, transparent 90%);
+}
+
+.stage-bar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.stage-bar-top label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.stage-name-display {
+  font-family: var(--orb);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cyan);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(0,200,255,0.4);
+}
+
+.stage-pips {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.stage-pip {
+  flex: 1;
+  height: 2px;
+  background: rgba(0,200,255,0.08);
+  border-radius: 1px;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+
+.stage-pip.done {
+  background: var(--cyan-dim);
+  box-shadow: 0 0 6px rgba(0,200,255,0.3);
+}
+
+.stage-pip.current {
+  background: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan);
+  animation: pipglow 1.8s ease-in-out infinite;
+}
+
+@keyframes pipglow {
+  0%,100% { box-shadow: 0 0 10px var(--cyan); }
+  50% { box-shadow: 0 0 4px var(--cyan); }
+}
+
+input[type=range] {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 2px;
+  background: rgba(0,200,255,0.12);
+  border-radius: 1px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--deep);
+  border: 2px solid var(--cyan);
+  box-shadow: 0 0 12px rgba(0,200,255,0.7), inset 0 0 4px rgba(0,200,255,0.3);
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+input[type=range]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 20px rgba(0,200,255,0.9), inset 0 0 6px rgba(0,200,255,0.5);
+}
+
+.stage-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.stage-labels span {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.12em;
+  text-align: center;
+  flex: 1;
+  text-transform: uppercase;
+}
+
+/* ─── TABS ───────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 20px;
+  background: var(--panel);
+  border: 1px solid var(--rim2);
+  border-radius: 6px;
+  padding: 4px;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 20px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.25s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tab-btn:hover { color: var(--cyan); }
+
+.tab-btn.active {
+  background: rgba(0,200,255,0.08);
+  color: var(--cyan);
+  box-shadow: 0 0 0 1px rgba(0,200,255,0.2);
+  text-shadow: 0 0 10px rgba(0,200,255,0.4);
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fadein 0.3s ease; }
+
+@keyframes fadein { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+
+/* ─── METRICS GRID ───────────────────────────────────── */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.metric {
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 6px;
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.metric::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 16px; right: 16px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,200,255,0.2), transparent);
+}
+
+.metric:hover {
+  border-color: var(--rim2);
+  box-shadow: 0 0 20px rgba(0,200,255,0.04);
+}
+
+.metric.warn { border-color: rgba(255,61,61,0.25); }
+.metric.warn::before { background: linear-gradient(90deg,transparent,rgba(255,61,61,0.3),transparent); }
+.metric.caution { border-color: rgba(255,179,0,0.25); }
+.metric.caution::before { background: linear-gradient(90deg,transparent,rgba(255,179,0,0.3),transparent); }
+
+.metric-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text3);
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-family: var(--orb);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.05em;
+  transition: color 0.3s, text-shadow 0.3s;
+}
+
+.metric-value.warn {
+  color: var(--red);
+  text-shadow: 0 0 14px var(--red-dim);
+}
+
+.metric-value.caution {
+  color: var(--amber);
+  text-shadow: 0 0 14px var(--amber-dim);
+}
+
+.metric-sub {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  margin-top: 6px;
+  letter-spacing: 0.1em;
+}
+
+/* ─── CHARTS ─────────────────────────────────────────── */
+.chart-wrap {
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 6px;
+  padding: 18px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--cyan-dim) 50%, transparent 100%);
+  opacity: 0.4;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.chart-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text2);
+}
+
+.legend { display: flex; gap: 16px; flex-wrap: wrap; }
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text2);
+  letter-spacing: 0.1em;
+}
+
+.legend-dot { width: 8px; height: 2px; border-radius: 1px; }
+
+/* ─── AI PANEL ───────────────────────────────────────── */
+.ai-panel {
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 6px;
+  padding: 18px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--violet) 50%, transparent 100%);
+  opacity: 0.35;
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.ai-icon {
+  width: 34px; height: 34px;
+  border-radius: 6px;
+  background: rgba(176,96,255,0.06);
+  border: 1px solid rgba(176,96,255,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  color: var(--violet);
+}
+
+.ai-title {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.ai-sub {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.12em;
+  margin-top: 2px;
+}
+
+/* ─── STATUS BADGE ───────────────────────────────────── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.status-badge.safe {
+  background: rgba(0,255,157,0.05);
+  border: 1px solid rgba(0,255,157,0.25);
+  color: var(--green);
+}
+
+.status-badge.risk {
+  background: rgba(255,61,61,0.05);
+  border: 1px solid rgba(255,61,61,0.3);
+  color: var(--red);
+  animation: riskalert 1.5s ease-in-out infinite;
+}
+
+@keyframes riskalert {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,61,61,0); }
+  50% { box-shadow: 0 0 12px 2px rgba(255,61,61,0.2); }
+}
+
+.status-badge.caution {
+  background: rgba(255,179,0,0.05);
+  border: 1px solid rgba(255,179,0,0.3);
+  color: var(--amber);
+}
+
+/* ─── ALERTS ─────────────────────────────────────────── */
+.alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+
+.alert-row.danger {
+  background: rgba(255,61,61,0.05);
+  border: 1px solid rgba(255,61,61,0.18);
+  color: #ff9090;
+}
+
+.alert-row.fix {
+  background: rgba(0,200,255,0.04);
+  border: 1px solid rgba(0,200,255,0.15);
+  color: var(--cyan-dim);
+}
+
+.alert-icon { font-size: 11px; margin-top: 1px; flex-shrink: 0; }
+
+/* ─── TWO COL ─────────────────────────────────────────── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 640px) {
+  .two-col { grid-template-columns: 1fr; }
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ─── TRAJECTORY ─────────────────────────────────────── */
+.traj-wrap {
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 6px;
+  padding: 18px;
+  margin-bottom: 12px;
+}
+
+#traj-canvas { width: 100%; height: auto; display: block; }
+
+.traj-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 0;
+}
+
+.traj-stat {
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 6px;
+  padding: 14px 18px;
+}
+
+.traj-stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text3);
+  margin-bottom: 6px;
+}
+
+.traj-stat-value {
+  font-family: var(--orb);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cyan);
+}
+
+/* ─── WHAT-IF ─────────────────────────────────────────── */
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 700px) { .scenario-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .scenario-grid { grid-template-columns: 1fr; } }
+
+.scenario-card {
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 6px;
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.scenario-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--cyan);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.scenario-card:hover {
+  border-color: var(--rim3);
+  background: rgba(0,200,255,0.03);
+  box-shadow: 0 0 20px rgba(0,200,255,0.04);
+}
+
+.scenario-card:hover::before { opacity: 0.4; }
+
+.scenario-card.selected {
+  border-color: rgba(0,200,255,0.4);
+  background: rgba(0,200,255,0.05);
+  box-shadow: 0 0 20px rgba(0,200,255,0.08);
+}
+
+.scenario-card.selected::before { opacity: 1; }
+
+.sc-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.sc-desc {
+  font-size: 11px;
+  color: var(--text2);
+  line-height: 1.4;
+}
+
+.scenario-detail {
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 6px;
+  padding: 20px;
+}
+
+.sc-detail-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  margin-bottom: 16px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rim);
+}
+
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.param-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  letter-spacing: 0.1em;
+  width: 90px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.param-bar-wrap { flex: 1; }
+
+.param-bar-bg {
+  height: 3px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.param-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+}
+
+.param-val {
+  font-family: var(--mono);
+  font-size: 11px;
+  width: 52px;
+  text-align: right;
+  letter-spacing: 0.08em;
+}
+
+/* ─── SECURITY ───────────────────────────────────────── */
+.sec-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 600px) { .sec-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.sec-card {
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 6px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sec-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 2px; height: 100%;
+  background: var(--green);
+  opacity: 0.4;
+}
+
+.sec-card-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text3);
+  margin-bottom: 8px;
+}
+
+.sec-card-value {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--green);
+  letter-spacing: 0.08em;
+}
+
+.hash-wrap {
+  background: var(--deep);
+  border: 1px solid var(--rim);
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 12px;
+  font-family: var(--mono);
+}
+
+.hash-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+
+.hash-val {
+  font-size: 11px;
+  color: var(--cyan-dim);
+  word-break: break-all;
+  line-height: 1.7;
+  letter-spacing: 0.05em;
+}
+
+.audit-log {
+  background: var(--deep);
+  border: 1px solid var(--rim);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.log-row {
+  display: flex;
+  gap: 14px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(0,200,255,0.04);
+  font-size: 11px;
+  font-family: var(--mono);
+}
+
+.log-row:last-child { border-bottom: none; }
+.log-time { color: var(--text3); width: 72px; flex-shrink: 0; letter-spacing: 0.08em; }
+.log-msg { color: var(--text2); flex: 1; }
+.log-ok { color: var(--green); letter-spacing: 0.1em; }
+
+/* ─── FOOTER ─────────────────────────────────────────── */
+.footer {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.footer-left, .footer-right {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ─── RADAR DECORATION ───────────────────────────────── */
+.radar-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.radar-canvas-wrap {
+  flex-shrink: 0;
+}
+
+.radar-info {
+  flex: 1;
+  padding-left: 20px;
+}
+
+/* Security status row */
+.sec-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  background: rgba(0,255,157,0.03);
+  border: 1px solid rgba(0,255,157,0.12);
+  border-radius: 6px;
+}
+
+.sec-status-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 10px var(--green);
+  flex-shrink: 0;
+  animation: livepulse 1.6s ease-in-out infinite;
+}
+
+.sec-status-text {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: 0.1em;
+}
+
+/* Horizontal divider with label */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  margin-top: 4px;
+}
+
+.section-head-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text3);
+  white-space: nowrap;
+}
+
+.section-head-line {
+  flex: 1;
+  height: 1px;
+  background: var(--rim);
+}
+
+/* Whatif empty state */
+.whatif-empty {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  padding: 10px 0;
+}
+</style>
+</head>
+<body>
+
+<!-- STARFIELD -->
+<div id="starfield"></div>
+
+<div class="shell">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="live-badge"><div class="live-dot"></div>Live telemetry</div>
+    </div>
+    <div class="header-center">
+      <div class="header-title">Artemis II</div>
+      <div class="header-sub">Mission Digital Twin &nbsp;·&nbsp; DST-v2.4.1 &nbsp;·&nbsp; NASA-JSC</div>
+    </div>
+    <div class="header-right">
+      <div class="utc-clock" id="utc-clock">00:00:00</div>
+      <div class="utc-label">Universal coordinated time</div>
+    </div>
+  </div>
+
+  <!-- STAGE SLIDER -->
+  <div class="stage-bar">
+    <div class="stage-bar-top">
+      <label>Mission stage</label>
+      <span class="stage-name-display" id="stage-name">Launch</span>
+    </div>
+    <div class="stage-pips" id="stage-pips"></div>
+    <input type="range" min="0" max="5" step="1" value="0" id="timeline" oninput="updateAll()">
+    <div class="stage-labels">
+      <span>Launch</span>
+      <span>E. Orbit</span>
+      <span>TLI</span>
+      <span>Cruise</span>
+      <span>Lunar</span>
+      <span>Return</span>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('telemetry',this)">Telemetry</button>
+    <button class="tab-btn" onclick="switchTab('trajectory',this)">Trajectory</button>
+    <button class="tab-btn" onclick="switchTab('whatif',this)">What-if Lab</button>
+    <button class="tab-btn" onclick="switchTab('security',this)">Security</button>
+  </div>
+
+  <!-- TAB: DASHBOARD -->
+  <div id="tab-dashboard" class="tab-panel active">
+
+    <div class="metrics" id="metric-grid"></div>
+
+    <div class="two-col">
+      <div class="chart-wrap">
+        <div class="chart-header">
+          <span class="chart-title">Systems overview</span>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#00c8ff"></div>Fuel %</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ffb300"></div>Temp °C</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#00ff9d"></div>Signal %</div>
+          </div>
+        </div>
+        <div style="position:relative;height:200px;"><canvas id="chart-sys"></canvas></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-header">
+          <span class="chart-title">Velocity km/s</span>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#b060ff"></div>Velocity</div>
+          </div>
+        </div>
+        <div style="position:relative;height:200px;"><canvas id="chart-vel"></canvas></div>
+      </div>
+    </div>
+
+    <div class="ai-panel">
+      <div class="ai-header">
+        <div class="ai-icon">⬡</div>
+        <div>
+          <div class="ai-title">AI Anomaly Engine</div>
+          <div class="ai-sub">Continuous telemetry analysis — RandomForest model</div>
+        </div>
+        <div style="margin-left:auto;" id="ai-badge"></div>
+      </div>
+      <div id="ai-detail"></div>
+    </div>
+
+  </div>
+
+  <!-- TAB: TELEMETRY -->
+  <div id="tab-telemetry" class="tab-panel">
+    <div class="chart-wrap" style="margin-bottom:12px;">
+      <div class="chart-header">
+        <span class="chart-title">Fuel &amp; temperature over mission</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#00c8ff"></div>Fuel %</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ff3d3d"></div>Temperature °C</div>
+        </div>
+      </div>
+      <div style="position:relative;height:240px;"><canvas id="chart-fuel-temp"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-header">
+        <span class="chart-title">Signal strength &amp; comm delay</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#00ff9d"></div>Signal %</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#b060ff"></div>Delay (s)</div>
+        </div>
+      </div>
+      <div style="position:relative;height:240px;"><canvas id="chart-sig-delay"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TAB: TRAJECTORY -->
+  <div id="tab-trajectory" class="tab-panel">
+    <div class="traj-wrap">
+      <div class="chart-header">
+        <span class="chart-title">Orbital trajectory — Orion capsule</span>
+        <span id="traj-phase" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.15em;text-transform:uppercase;"></span>
+      </div>
+      <canvas id="traj-canvas" height="280"></canvas>
+    </div>
+    <div class="traj-stats">
+      <div class="traj-stat">
+        <div class="traj-stat-label">Current phase</div>
+        <div class="traj-stat-value" id="traj-phase-val">Launch</div>
+      </div>
+      <div class="traj-stat">
+        <div class="traj-stat-label">Distance from Earth</div>
+        <div class="traj-stat-value" id="traj-dist-val">0 km</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: WHAT-IF LAB -->
+  <div id="tab-whatif" class="tab-panel">
+    <div class="section-head">
+      <span class="section-head-label">Failure scenario simulator</span>
+      <div class="section-head-line"></div>
+    </div>
+    <p style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:16px;letter-spacing:0.06em;line-height:1.6;">Select a failure scenario to simulate parameters and recommended responses.</p>
+    <div class="scenario-grid" id="scenario-grid"></div>
+    <div class="scenario-detail" id="scenario-detail">
+      <div class="whatif-empty">Select a scenario above to begin simulation.</div>
+    </div>
+  </div>
+
+  <!-- TAB: SECURITY -->
+  <div id="tab-security" class="tab-panel">
+    <div class="sec-status-row">
+      <div class="sec-status-dot"></div>
+      <span class="sec-status-text">All systems verified — no anomalies detected</span>
+    </div>
+
+    <div class="sec-grid">
+      <div class="sec-card"><div class="sec-card-label">Encryption</div><div class="sec-card-value">AES-256 active</div></div>
+      <div class="sec-card"><div class="sec-card-label">Authentication</div><div class="sec-card-value">Multi-factor verified</div></div>
+      <div class="sec-card"><div class="sec-card-label">Data integrity</div><div class="sec-card-value">SHA-256 validated</div></div>
+      <div class="sec-card"><div class="sec-card-label">Intrusion detection</div><div class="sec-card-value">No alerts</div></div>
+      <div class="sec-card"><div class="sec-card-label">Command uplink</div><div class="sec-card-value">Authenticated</div></div>
+      <div class="sec-card"><div class="sec-card-label">Telemetry downlink</div><div class="sec-card-value">Encrypted</div></div>
+    </div>
+
+    <div class="hash-wrap">
+      <div class="hash-label">Telemetry packet hash — SHA-256</div>
+      <div class="hash-val" id="hash-display">computing...</div>
+    </div>
+
+    <div class="audit-log">
+      <div class="hash-label" style="margin-bottom:12px;">Audit log</div>
+      <div id="audit-log-rows"></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-left">Artemis-II &nbsp;//&nbsp; DST-v2.4.1 &nbsp;//&nbsp; NASA-JSC</div>
+    <div class="footer-right" id="footer-hash"></div>
+  </div>
+
+</div>
+
+<script>
+/* ─── STARFIELD ──────────────────────────────────────── */
+(function() {
+  const sf = document.getElementById('starfield');
+  for (let i = 0; i < 140; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const sz = Math.random() * 1.8 + 0.3;
+    s.style.cssText = `
+      width:${sz}px;height:${sz}px;
+      top:${Math.random()*100}%;
+      left:${Math.random()*100}%;
+      --d:${(Math.random()*4+2).toFixed(1)}s;
+      --delay:-${(Math.random()*6).toFixed(1)}s;
+      --max-op:${(Math.random()*0.5+0.1).toFixed(2)};
+    `;
+    sf.appendChild(s);
+  }
+})();
+
+/* ─── DATA ───────────────────────────────────────────── */
+const STAGES = ["Launch","Earth orbit","Trans-lunar injection","Deep space cruise","Lunar flyby","Return"];
+const DATA = {
+  Distance:    [0,      200,    40000,   200000,  384400,  10000],
+  Velocity:    [0,      7.8,    10.8,    9.5,     1.6,     11],
+  Fuel:        [100,    92,     75,      60,      45,      25],
+  Temperature: [25,     38,     58,      52,      48,      46],
+  Signal:      [100,    97,     85,      75,      70,      80]
+};
+
+const RISK_RULES = {
+  Fuel: { low: 30, label: 'Low fuel', threshold: 'below 30%' },
+  Temperature: { high: 55, label: 'Critical temperature', threshold: 'above 55 °C' },
+  Velocity: { high: 10.5, label: 'Velocity out of bounds', threshold: 'above 10.5 km/s' }
+};
+
+const SCENARIOS = [
+  { id:'fuel', name:'Low fuel', desc:'Propellant reserves critical', warn:'Fuel at 18% — below minimum for return burn. Mission abort risk.', fix:'Reduce thruster usage by 40%. Cancel non-essential maneuvers. Prepare contingency abort sequence.', params:{ Fuel:[18,'danger'], Temperature:[42,'ok'], Velocity:[9.2,'ok'], Signal:[88,'ok'] } },
+  { id:'temp', name:'Thermal overload', desc:'Heat shield anomaly detected', warn:'Panel 3C reading 71 °C — 16° above critical. Structural damage risk.', fix:'Activate emergency cooling loop B. Rotate spacecraft 35° from solar vector. Reduce power to science payloads.', params:{ Fuel:[65,'ok'], Temperature:[71,'danger'], Velocity:[9.5,'ok'], Signal:[82,'ok'] } },
+  { id:'signal', name:'Signal loss', desc:'Communications blackout', warn:'Signal at 12% — approaching blackout. Ground contact at risk within 4 minutes.', fix:'Switch to backup relay via TDRS-East. Increase antenna gain to max. Enable autonomous command mode.', params:{ Fuel:[60,'ok'], Temperature:[50,'ok'], Velocity:[9.5,'ok'], Signal:[12,'danger'] } },
+  { id:'velocity', name:'Velocity error', desc:'TLI burn deviation', warn:'Velocity 12.4 km/s — 15% above nominal. Lunar insertion window missed.', fix:'Execute 22-second retrograde correction burn at perigee. Recalculate lunar insertion trajectory.', params:{ Fuel:[58,'caution'], Temperature:[44,'ok'], Velocity:[12.4,'danger'], Signal:[80,'ok'] } },
+  { id:'trajectory', name:'Trajectory deviation', desc:'Path deviation 0.4°', warn:'Trajectory offset 0.4° from nominal — lunar orbital insertion at risk.', fix:'Apply delta-v of 18 m/s at next correction window (T+4h 22m). Update navigation star trackers.', params:{ Fuel:[72,'ok'], Temperature:[41,'ok'], Velocity:[10.8,'caution'], Signal:[85,'ok'] } },
+  { id:'radiation', name:'Radiation spike', desc:'Solar particle event', warn:'Proton flux at 3.2×10⁶ particles/cm²/s — crew dose limit approaching.', fix:'Orient spacecraft to use main engine/fuel tank as radiation shield. Alert crew to sheltering protocol.', params:{ Fuel:[80,'ok'], Temperature:[47,'ok'], Velocity:[9.5,'ok'], Signal:[91,'ok'] } },
+];
+
+let charts = {};
+let auditLog = [];
+
+function getStep() { return parseInt(document.getElementById('timeline').value); }
+
+function isRisk(s) {
+  return DATA.Fuel[s] < 30 || DATA.Temperature[s] > 55 || DATA.Velocity[s] > 10.5;
+}
+
+/* ─── METRICS ────────────────────────────────────────── */
+function buildMetrics() {
+  const s = getStep();
+  const delay = (DATA.Distance[s] / 300000).toFixed(3);
+  const items = [
+    { label:'Distance', val: DATA.Distance[s].toLocaleString() + ' km', sub: s > 0 ? '+' + (DATA.Distance[s] - DATA.Distance[s-1]).toLocaleString() + ' km' : 'start' },
+    { label:'Velocity', val: DATA.Velocity[s].toFixed(1) + ' km/s', sub: DATA.Velocity[s] > 10.5 ? 'ABOVE NOMINAL' : 'nominal', warn: DATA.Velocity[s] > 10.5 },
+    { label:'Fuel remaining', val: DATA.Fuel[s] + '%', sub: 'consumption nominal', warn: DATA.Fuel[s] < 30, caution: DATA.Fuel[s] < 50 },
+    { label:'Temperature', val: DATA.Temperature[s] + ' °C', sub: 'heat shield nominal', warn: DATA.Temperature[s] > 55, caution: DATA.Temperature[s] > 50 },
+    { label:'Signal strength', val: DATA.Signal[s] + '%', sub: delay + 's comm delay', caution: DATA.Signal[s] < 80 },
+    { label:'Comm delay', val: delay + ' s', sub: (DATA.Distance[s]/1000).toFixed(0) + ' kkm distance' },
+  ];
+  const grid = document.getElementById('metric-grid');
+  grid.innerHTML = items.map(it => `
+    <div class="metric ${it.warn ? 'warn' : it.caution ? 'caution' : ''}">
+      <div class="metric-label">${it.label}</div>
+      <div class="metric-value ${it.warn ? 'warn' : it.caution ? 'caution' : ''}">${it.val}</div>
+      <div class="metric-sub">${it.sub || ''}</div>
+    </div>`).join('');
+}
+
+/* ─── STAGE PIPS ─────────────────────────────────────── */
+function buildStagePips() {
+  const s = getStep();
+  const wrap = document.getElementById('stage-pips');
+  wrap.innerHTML = STAGES.map((_,i) =>
+    `<div class="stage-pip ${i < s ? 'done' : i === s ? 'current' : ''}"></div>`
+  ).join('');
+}
+
+/* ─── AI ENGINE ──────────────────────────────────────── */
+function buildAI() {
+  const s = getStep();
+  const risk = isRisk(s);
+  const badge = document.getElementById('ai-badge');
+  const detail = document.getElementById('ai-detail');
+
+  if (risk) {
+    badge.innerHTML = '<span class="status-badge risk">⬤ Risk detected</span>';
+    let alerts = '';
+    if (DATA.Fuel[s] < 30) alerts += `<div class="alert-row danger"><span class="alert-icon">⚠</span>Fuel critical — ${DATA.Fuel[s]}% remaining (threshold: 30%)</div>`;
+    if (DATA.Temperature[s] > 55) alerts += `<div class="alert-row danger"><span class="alert-icon">⚠</span>Temperature critical — ${DATA.Temperature[s]} °C (limit: 55 °C)</div>`;
+    if (DATA.Velocity[s] > 10.5) alerts += `<div class="alert-row danger"><span class="alert-icon">⚠</span>Velocity anomaly — ${DATA.Velocity[s].toFixed(1)} km/s (nominal: ≤10.5)</div>`;
+    alerts += `<div class="alert-row fix"><span class="alert-icon">▶</span>Recommended: adjust engine burn profile, reduce non-essential power draws, recalculate trajectory window</div>`;
+    detail.innerHTML = alerts;
+  } else {
+    badge.innerHTML = '<span class="status-badge safe">✓ Nominal</span>';
+    detail.innerHTML = `<div style="font-family:var(--mono);font-size:11px;color:var(--text2);letter-spacing:0.06em;">All telemetry within nominal bounds. No anomalies detected. Confidence: <span style="color:var(--green);">97.4%</span></div>`;
+  }
+}
+
+/* ─── CHARTS ─────────────────────────────────────────── */
+function chartOpts() {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#020b14',
+        borderColor: 'rgba(0,200,255,0.2)',
+        borderWidth: 1,
+        titleColor: '#5a7a99',
+        bodyColor: '#c8dff0',
+        padding: 10,
+        titleFont: { family: "'Share Tech Mono'", size: 10 },
+        bodyFont: { family: "'Share Tech Mono'", size: 11 },
+        callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + ctx.parsed.y }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#2a4055', font: { size: 9, family: "'Share Tech Mono'" }, maxTicksLimit: 6 },
+        grid: { color: 'rgba(0,200,255,0.04)' }
+      },
+      y: {
+        ticks: { color: '#2a4055', font: { size: 9, family: "'Share Tech Mono'" } },
+        grid: { color: 'rgba(0,200,255,0.04)' }
+      }
+    }
+  };
+}
+
+function makeDataset(key, color, label) {
+  const s = getStep();
+  return {
+    label: label || key,
+    data: DATA[key].slice(0, s+1),
+    borderColor: color,
+    backgroundColor: color + '18',
+    fill: true,
+    pointRadius: 4,
+    pointBackgroundColor: color,
+    pointBorderColor: '#010408',
+    pointBorderWidth: 1,
+    borderWidth: 2,
+    tension: 0.4
+  };
+}
+
+function updateOrCreate(id, type, datasets) {
+  const s = getStep();
+  const labels = STAGES.slice(0, s+1);
+  if (charts[id]) {
+    charts[id].data.labels = labels;
+    charts[id].data.datasets = datasets;
+    charts[id].update('none');
+  } else {
+    charts[id] = new Chart(document.getElementById(id), {
+      type, data: { labels, datasets }, options: chartOpts()
+    });
+  }
+}
+
+function buildCharts() {
+  updateOrCreate('chart-sys', 'line', [
+    makeDataset('Fuel', '#00c8ff', 'Fuel %'),
+    makeDataset('Temperature', '#ffb300', 'Temp °C'),
+    makeDataset('Signal', '#00ff9d', 'Signal %')
+  ]);
+  updateOrCreate('chart-vel', 'line', [
+    makeDataset('Velocity', '#b060ff', 'Velocity km/s')
+  ]);
+  updateOrCreate('chart-fuel-temp', 'line', [
+    makeDataset('Fuel', '#00c8ff', 'Fuel %'),
+    makeDataset('Temperature', '#ff3d3d', 'Temperature °C')
+  ]);
+  const s = getStep();
+  const delayData = DATA.Distance.slice(0, s+1).map(d => parseFloat((d/300000).toFixed(4)));
+  const labels = STAGES.slice(0, s+1);
+  const delayDs = {
+    label: 'Delay (s)', data: delayData,
+    borderColor: '#b060ff', backgroundColor: '#b060ff18',
+    fill: true, pointRadius: 4, pointBackgroundColor: '#b060ff',
+    pointBorderColor: '#010408', pointBorderWidth: 1,
+    borderWidth: 2, tension: 0.4
+  };
+  if (charts['chart-sig-delay']) {
+    charts['chart-sig-delay'].data.labels = labels;
+    charts['chart-sig-delay'].data.datasets = [makeDataset('Signal', '#00ff9d', 'Signal %'), delayDs];
+    charts['chart-sig-delay'].update('none');
+  } else {
+    charts['chart-sig-delay'] = new Chart(document.getElementById('chart-sig-delay'), {
+      type: 'line',
+      data: { labels, datasets: [makeDataset('Signal', '#00ff9d', 'Signal %'), delayDs] },
+      options: chartOpts()
+    });
+  }
+}
+
+/* ─── TRAJECTORY ─────────────────────────────────────── */
+function drawTrajectory() {
+  const s = getStep();
+  const canvas = document.getElementById('traj-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 700;
+  canvas.width = W;
+  canvas.height = 280;
+  const H = 280;
+  ctx.clearRect(0, 0, W, H);
+
+  const earthX = 80, earthY = H/2, moonX = W-80, moonY = H/2;
+
+  // Grid lines
+  for (let i = 1; i < 4; i++) {
+    ctx.strokeStyle = 'rgba(0,200,255,0.04)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(W*i/4, 0); ctx.lineTo(W*i/4, H);
+    ctx.stroke();
+  }
+
+  // Outbound dashed path
+  ctx.setLineDash([4, 6]);
+  ctx.strokeStyle = 'rgba(0,200,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(earthX+22, earthY);
+  ctx.bezierCurveTo(W*0.3, earthY-110, W*0.7, earthY-110, moonX-16, moonY);
+  ctx.stroke();
+
+  // Return path
+  ctx.strokeStyle = 'rgba(255,61,61,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(moonX-16, moonY);
+  ctx.bezierCurveTo(W*0.7, earthY+80, W*0.3, earthY+80, earthX+22, earthY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Earth glow
+  const eg = ctx.createRadialGradient(earthX, earthY, 0, earthX, earthY, 40);
+  eg.addColorStop(0, 'rgba(30,80,220,0.4)');
+  eg.addColorStop(1, 'transparent');
+  ctx.fillStyle = eg;
+  ctx.beginPath(); ctx.arc(earthX, earthY, 40, 0, Math.PI*2); ctx.fill();
+
+  // Earth body
+  ctx.fillStyle = '#1d4ed8';
+  ctx.beginPath(); ctx.arc(earthX, earthY, 22, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#166534';
+  ctx.beginPath(); ctx.arc(earthX-6, earthY-4, 10, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath(); ctx.arc(earthX+5, earthY+7, 11, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = 'rgba(0,200,255,0.5)';
+  ctx.font = '10px Share Tech Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('EARTH', earthX, earthY + 40);
+
+  // Moon glow
+  const mg = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, 28);
+  mg.addColorStop(0, 'rgba(148,163,184,0.3)');
+  mg.addColorStop(1, 'transparent');
+  ctx.fillStyle = mg;
+  ctx.beginPath(); ctx.arc(moonX, moonY, 28, 0, Math.PI*2); ctx.fill();
+
+  // Moon body
+  ctx.fillStyle = '#475569';
+  ctx.beginPath(); ctx.arc(moonX, moonY, 14, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#334155';
+  ctx.beginPath(); ctx.arc(moonX-4, moonY-3, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,200,255,0.4)';
+  ctx.fillText('MOON', moonX, moonY + 32);
+
+  // Capsule position
+  const t = s / 5;
+  let rx, ry, phase;
+  if (t < 0.5) {
+    const p = t * 2;
+    rx = bezierPoint(p, earthX+22, W*0.3, W*0.7, moonX-16);
+    ry = bezierPoint(p, earthY, earthY-110, earthY-110, moonY);
+    phase = 'OUTBOUND';
+  } else {
+    const p = (t - 0.5) * 2;
+    rx = bezierPoint(p, moonX-16, W*0.7, W*0.3, earthX+22);
+    ry = bezierPoint(p, moonY, earthY+80, earthY+80, earthY);
+    phase = 'RETURN';
+  }
+
+  // Capsule glow
+  const cg = ctx.createRadialGradient(rx, ry, 0, rx, ry, 22);
+  cg.addColorStop(0, 'rgba(0,200,255,0.3)');
+  cg.addColorStop(1, 'transparent');
+  ctx.fillStyle = cg;
+  ctx.beginPath(); ctx.arc(rx, ry, 22, 0, Math.PI*2); ctx.fill();
+
+  // Capsule body
+  ctx.fillStyle = '#00c8ff';
+  ctx.beginPath(); ctx.arc(rx, ry, 7, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.beginPath(); ctx.arc(rx-2, ry-2, 2.5, 0, Math.PI*2); ctx.fill();
+
+  // Capsule label
+  ctx.fillStyle = '#c8dff0';
+  ctx.font = '10px Share Tech Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('ORION', rx, ry - 18);
+
+  document.getElementById('traj-phase').textContent = phase;
+  document.getElementById('traj-phase-val').textContent = STAGES[s];
+  document.getElementById('traj-dist-val').textContent = DATA.Distance[s].toLocaleString() + ' km';
+}
+
+function bezierPoint(t, p0, p1, p2, p3) {
+  const mt = 1 - t;
+  return mt*mt*mt*p0 + 3*mt*mt*t*p1 + 3*mt*t*t*p2 + t*t*t*p3;
+}
+
+/* ─── WHAT-IF ─────────────────────────────────────────── */
+function buildScenarios() {
+  document.getElementById('scenario-grid').innerHTML = SCENARIOS.map(sc => `
+    <div class="scenario-card" onclick="selectScenario('${sc.id}', this)">
+      <div class="sc-name">${sc.name}</div>
+      <div class="sc-desc">${sc.desc}</div>
+    </div>`).join('');
+}
+
+function selectScenario(id, el) {
+  document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  const sc = SCENARIOS.find(s => s.id === id);
+  const p = sc.params;
+  const paramColor = { ok: '#00ff9d', caution: '#ffb300', danger: '#ff3d3d' };
+  const pKeys = Object.keys(p);
+  const ranges = { Fuel:[0,100], Temperature:[0,100], Velocity:[0,15], Signal:[0,100] };
+
+  document.getElementById('scenario-detail').innerHTML = `
+    <div class="sc-detail-title">${sc.name} — simulation parameters</div>
+    <div class="alert-row danger" style="margin-bottom:12px;"><span class="alert-icon">⚠</span>${sc.warn}</div>
+    ${pKeys.map(k => {
+      const [val, status] = p[k];
+      const range = ranges[k] || [0, 100];
+      const pct = Math.min(100, Math.round((val - range[0]) / (range[1] - range[0]) * 100));
+      return `<div class="param-row">
+        <div class="param-label">${k}</div>
+        <div class="param-bar-wrap">
+          <div class="param-bar-bg"><div class="param-bar-fill" style="width:${pct}%;background:${paramColor[status]};box-shadow:0 0 6px ${paramColor[status]}40;"></div></div>
+        </div>
+        <div class="param-val" style="color:${paramColor[status]};">${typeof val === 'number' && !Number.isInteger(val) ? val.toFixed(1) : val}</div>
+      </div>`;
+    }).join('')}
+    <div class="alert-row fix" style="margin-top:10px;"><span class="alert-icon">▶</span>${sc.fix}</div>
+  `;
+}
+
+/* ─── SECURITY ───────────────────────────────────────── */
+async function buildSecurity() {
+  const s = getStep();
+  const payload = JSON.stringify({ stage: STAGES[s], dist: DATA.Distance[s], vel: DATA.Velocity[s], fuel: DATA.Fuel[s], temp: DATA.Temperature[s], sig: DATA.Signal[s], ts: Date.now() });
+  try {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
+    const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    document.getElementById('hash-display').textContent = hex;
+    document.getElementById('footer-hash').textContent = hex.slice(0, 16) + '...';
+  } catch(e) {
+    document.getElementById('hash-display').textContent = 'unavailable';
+  }
+
+  if (auditLog.length === 0) {
+    const base = Date.now() - 60000 * 5;
+    auditLog = [
+      { t: base, msg: 'Session established — mutual TLS handshake', ok: true },
+      { t: base + 18000, msg: 'Telemetry packet 001 received and verified', ok: true },
+      { t: base + 35000, msg: 'Command uplink authenticated — DSA-4096', ok: true },
+      { t: base + 52000, msg: 'AES-256-GCM key rotation performed', ok: true },
+      { t: base + 68000, msg: 'Integrity check — all sensors nominal', ok: true },
+    ];
+  }
+
+  auditLog.push({ t: Date.now(), msg: `Stage change: ${STAGES[s]} — hash recomputed`, ok: true });
+  if (auditLog.length > 8) auditLog.shift();
+
+  document.getElementById('audit-log-rows').innerHTML = auditLog.slice(-6).reverse().map(row => {
+    const d = new Date(row.t);
+    const ts = [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()].map(n => n.toString().padStart(2,'0')).join(':');
+    return `<div class="log-row">
+      <div class="log-time">${ts} UTC</div>
+      <div class="log-msg">${row.msg}</div>
+      <div class="log-ok">${row.ok ? 'OK' : 'ERR'}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ─── MAIN UPDATE ─────────────────────────────────────── */
+function updateAll() {
+  const s = getStep();
+  document.getElementById('stage-name').textContent = STAGES[s];
+  buildStagePips();
+  buildMetrics();
+  buildAI();
+  buildCharts();
+  drawTrajectory();
+  buildSecurity();
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  setTimeout(() => {
+    Object.values(charts).forEach(c => c.resize());
+    if (name === 'trajectory') drawTrajectory();
+  }, 60);
+}
+
+/* ─── CLOCK ──────────────────────────────────────────── */
+function updateClock() {
+  const now = new Date();
+  document.getElementById('utc-clock').textContent =
+    [now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds()]
+      .map(n => n.toString().padStart(2,'0')).join(':');
+}
+
+setInterval(updateClock, 1000);
+updateClock();
+buildScenarios();
+updateAll();
+</script>
+</body>
+</html>
